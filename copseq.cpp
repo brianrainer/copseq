@@ -1,0 +1,175 @@
+#include<bits/stdc++.h>
+using namespace std;
+
+#define pb push_back
+#define mp make_pair
+#define fi first
+#define se second
+
+typedef long long ll;
+typedef pair<int, int> ii;
+
+ll mulmod(ll multa, ll multb, ll mod){
+	ll res=0ll; multa%=mod;
+	while(multb){
+		if(multb&1) res=(res+multa)%mod;
+		multa=(multa<<1)%mod;
+		multb>>=1;
+	}
+	return res;
+}
+
+ll fast_gcd(ll a, ll b){
+	while(true){
+		ll r=a%b;
+		if (r==0) return b;
+		a=b; b=r;
+	}
+}
+
+ll fast_exp(ll base, ll pow, ll mod){
+	ll res=1ll;
+	while(pow){
+		if (pow&1) res=mulmod(res, base, mod);
+		base = mulmod(base, base, mod);
+		pow>>=1;
+	}
+	return res;
+}
+
+bool millerRabin(ll p){
+	cout<<"miller"<<p<<endl;
+	if (p<2 || (p!=2 && p%2==0)) return false;
+	ll s=p-1;
+	while(s%2==0) s>>=1;
+	ll a[10] = {2,3,5,7,11,13,17,19,23,29}; 
+	for(int i=0;i<10;i++){
+		ll temp=s;
+		ll mod=fast_exp(a[i],temp,p);
+		while(temp!=p-1 && mod!=1 && mod!=p-1){
+			mod = mulmod(mod,mod,p);
+			temp<<=1;
+		}
+		if (mod!=p-1 && temp%2==0) return false;
+	}
+	return true;
+}
+
+ll floyd_pollard_rho(ll n){
+	ll d=n;
+	for(int c=2; d==n; c++){
+		ll x=2;
+		ll y=x;
+		while(true) {
+			x = (mulmod(x,x,n) + c)%n;
+			y = (mulmod(y,y,n) + c)%n;
+			y = (mulmod(y,y,n) + c)%n;
+			d = fast_gcd(abs(x-y),n);
+			if(d>1) break;
+		}
+	}
+	return d;
+}
+
+ll brent_pollard_rho(ll n){
+	if (n<2) return 1;
+	if (n%2==0) return 2;
+
+	srand(time(NULL));
+	ll c,x,y,ys,d,r,q,k,m;
+	y=(rand()%(n-0))+0;
+	do { c=(rand()%(n-3))+1; } while(y==c);
+	d=r=q=1; m=1000;
+	
+	while(d==1) {
+		x=y;
+		for (int i=0;i<r;i++){
+			y = (mulmod(y,y,n) + c)%n;
+		}
+		k=0;
+		while(k<r && d==1) {
+			ys=y;
+			for(int i=0;i<min(m,r-k);i++){
+				y = (mulmod(y,y,n) + c)%n;
+				q = (mulmod(q,abs(x-y),n) + c)%n;
+			}
+			d = fast_gcd(q,n);
+			k+=m;
+		}
+		r<<=1;
+	}
+	if(d==n){
+		while(true) {
+			ys = (mulmod(ys,ys,n) + c)%n;
+			d = fast_gcd(abs(x-ys),n);
+			if (d>1) break;
+		}
+	}
+	return d;
+}
+
+const static int sie_sz = 1e6+5;
+bitset<sie_sz> is_prime;
+vector<ll> first_primes;
+void sieve(){
+	first_primes.clear(); is_prime.flip(); 
+	is_prime.reset(0); is_prime.reset(1);
+	for(int i=2;i<sqrt(sie_sz);i++){
+		if(is_prime.test(i)){
+			first_primes.pb(i);
+			for(int j=i*i;j<sie_sz;j+=i){
+				is_prime.reset(j);
+	}}}
+	for(int i=sqrt(sie_sz)+1;i<sie_sz;i++){
+		if(is_prime.test(i)){
+			first_primes.pb(i);
+	}}
+}
+
+bool probablyPrime(ll n){
+	if(n<sie_sz){
+		return is_prime.test(n);
+	} else {
+		return millerRabin(n);
+	}
+}
+
+
+vector<ll> ndivs;
+void factorize(ll n){
+	cout<<"factorize"<<n<<endl;
+	if (n==1) return;
+
+	if(probablyPrime(n)) {
+		ndivs.pb(n);
+		return;
+	}
+
+	ll d = brent_pollard_rho(n);
+	factorize(d);
+	factorize(n/d);
+}
+
+void start_factorize(ll n){
+	ndivs.clear(); cout<<"clear\n";
+	factorize(n);
+	if (ndivs.empty()){
+		cout<<"1"<<endl;
+	} else {
+		for(auto v : ndivs){ 
+			cout<<v<<" "; 
+		} cout<<endl;
+	}
+}
+
+int main(){
+	sieve();
+
+	ll n,m;
+	cin>>n; 
+	while(n--){
+		cin>>m; start_factorize(m);
+	}
+
+	return 0;
+}
