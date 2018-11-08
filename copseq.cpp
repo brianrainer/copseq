@@ -132,53 +132,65 @@ bool probablyPrime(ll n){
 }
 
 
-vector<ll> ndivs;
+vector<ll> factors;
 void factorize(ll n){
 	// cout<<"fac"<<n<<" ";
-	if (n==1) return;
-
-	while(n%2==0){
-		ndivs.pb(2);
-		n>>=1;
-	}
-
-	if(probablyPrime(n)) {
-		ndivs.pb(n);
-		return;
-	}
+	while(n%2==0){ factors.pb(2); n>>=1; }
+	if(probablyPrime(n)) { factors.pb(n); return; }
 
 	ll d;
-	if (n<sie_sz){
-		d = divs[n];
-	} else {
-		d = brent_pollard_rho(n);
-	}
+	if (n<sie_sz){ d = divs[n]; } 
+	else { d = brent_pollard_rho(n); }
 
 	if (d!=1 && d!=n) {	
-		factorize(d);
-		factorize(n/d);
+		factorize(d); 
+		factorize(n/d); 
 	}
 }
 
 void start_factorize(ll n){
-	ndivs.clear();
+	factors.clear();
 	factorize(n);
+	if (factors.empty()) factors.pb(1);
+	sort(factors.begin(), factors.end());
+	
 	if (DEBUG){
-		if (ndivs.empty()){ cout<<"1"<<endl; } 
-		else { 
-			sort(ndivs.begin(), ndivs.end());
-			for(int i=0;i<ndivs.size();i++){ cout<<ndivs[i]<<" "; } 
-			cout<<endl;
-	}}
+		for(int i=0;i<factors.size();i++){ cout<<factors[i]<<" "; } 
+		cout<<endl;
+	}
+}
+
+vector<int> enc;
+void encode(){
+	sort(factors.begin(), factors.end());
+	enc.clear();
+	int cnt=1;
+	for(int i=1;i<v.size();i++){
+		if(factors[i]==factors[i-1]){
+			cnt++;
+		} else {
+			enc.pb(cnt);
+			cnt=1;
+		}
+	}
+	enc.pb(cnt);
+
+	sort(enc.begin(), enc.end());
+	if (DEBUG){
+		for(int i=0;i<enc.size();i++){ cout<<enc[i]<<" "; }
+		cout<<endl;
+	}
 }
 
 int main(){
 	sieve();
-	
+
 	ll n,m;
 	cin>>n; 
 	while(n--){
-		cin>>m; start_factorize(m);
+		cin>>m; 
+		start_factorize(m);
+		encode();
 	}
 
 	return 0;
