@@ -9,6 +9,8 @@ using namespace std;
 typedef long long ll;
 typedef pair<int, int> ii;
 
+const bool DEBUG = true;
+
 ll mulmod(ll multa, ll multb, ll mod){
 	ll res=0ll; multa%=mod;
 	while(multb){
@@ -38,7 +40,6 @@ ll fast_exp(ll base, ll pow, ll mod){
 }
 
 bool millerRabin(ll p){
-	cout<<"miller"<<p<<endl;
 	if (p<2 || (p!=2 && p%2==0)) return false;
 	ll s=p-1;
 	while(s%2==0) s>>=1;
@@ -91,7 +92,7 @@ ll brent_pollard_rho(ll n){
 			ys=y;
 			for(int i=0;i<min(m,r-k);i++){
 				y = (mulmod(y,y,n) + c)%n;
-				q = (mulmod(q,abs(x-y),n) + c)%n;
+				q = mulmod(q,abs(x-y),n);
 			}
 			d = fast_gcd(q,n);
 			k+=m;
@@ -110,20 +111,16 @@ ll brent_pollard_rho(ll n){
 
 const static int sie_sz = 1e6+5;
 bitset<sie_sz> is_prime;
-vector<ll> first_primes;
+vector<ll> divs(sie_sz, 1);
 void sieve(){
-	first_primes.clear(); is_prime.flip(); 
+	is_prime.flip(); 
 	is_prime.reset(0); is_prime.reset(1);
 	for(int i=2;i<sqrt(sie_sz);i++){
 		if(is_prime.test(i)){
-			first_primes.pb(i);
 			for(int j=i*i;j<sie_sz;j+=i){
+				divs[j]=i;
 				is_prime.reset(j);
 	}}}
-	for(int i=sqrt(sie_sz)+1;i<sie_sz;i++){
-		if(is_prime.test(i)){
-			first_primes.pb(i);
-	}}
 }
 
 bool probablyPrime(ll n){
@@ -137,34 +134,47 @@ bool probablyPrime(ll n){
 
 vector<ll> ndivs;
 void factorize(ll n){
-	cout<<"factorize"<<n<<endl;
+	// cout<<"fac"<<n<<" ";
 	if (n==1) return;
+
+	while(n%2==0){
+		ndivs.pb(2);
+		n>>=1;
+	}
 
 	if(probablyPrime(n)) {
 		ndivs.pb(n);
 		return;
 	}
 
-	ll d = brent_pollard_rho(n);
-	factorize(d);
-	factorize(n/d);
+	ll d;
+	if (n<sie_sz){
+		d = divs[n];
+	} else {
+		d = brent_pollard_rho(n);
+	}
+
+	if (d!=1 && d!=n) {	
+		factorize(d);
+		factorize(n/d);
+	}
 }
 
 void start_factorize(ll n){
-	ndivs.clear(); cout<<"clear\n";
+	ndivs.clear();
 	factorize(n);
-	if (ndivs.empty()){
-		cout<<"1"<<endl;
-	} else {
-		for(auto v : ndivs){ 
-			cout<<v<<" "; 
-		} cout<<endl;
-	}
+	if (DEBUG){
+		if (ndivs.empty()){ cout<<"1"<<endl; } 
+		else { 
+			sort(ndivs.begin(), ndivs.end());
+			for(int i=0;i<ndivs.size();i++){ cout<<ndivs[i]<<" "; } 
+			cout<<endl;
+	}}
 }
 
 int main(){
 	sieve();
-
+	
 	ll n,m;
 	cin>>n; 
 	while(n--){
