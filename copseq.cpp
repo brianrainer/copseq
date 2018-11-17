@@ -6,7 +6,7 @@ using namespace std;
 #define fi first
 #define se second
 
-typedef unsigned long long ll;
+typedef long ll;
 typedef pair<ll,ll> ii;
 
 bool DEBUG = true;
@@ -262,9 +262,9 @@ void start_factorize(ll num, ll pow){
 	
 	ll final_ans=0;
 	if (pow==1){
-		for(int i=1;i<size;i++){
-			final_ans = (final_ans+dp[i])%MODULO;
-		}
+		final_ans=matrix_mult(dp,identityB);
+	} else if(dp.size()==2) {
+		final_ans=fast_exp(dp[1],pow,MODULO);
 	} else {
 		if (pow>2){
 			// exponent the matrix
@@ -311,8 +311,10 @@ int main(){
 	
 	while(l--){	
 		cin>>n>>m;
-		if (n==0 || m<2) {
-			cout<<"0\n"; 
+		if (n==0){
+			cout<<"0\n";
+		} else if(m<2) {
+			cout<<"1\n"; 
 		} else {
 			start_factorize(m,n);
 		}
