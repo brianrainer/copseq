@@ -80,7 +80,7 @@ ll brent_pollard_rho(ll n){
 	ll c,x,y,ys,d,r,q,k,m;
 	y=(rand()%(n-0))+0;
 	do { c=(rand()%(n-3))+1; } while(y==c);
-	d=r=q=1; m=1000;
+	d=r=q=1; m=100;
 	
 	while(d==1) {
 		x=y;
@@ -131,12 +131,11 @@ bool probablyPrime(ll n){
 	}
 }
 
-
-vector<ll> factors;
+unordered_map<ll,int> divisors;
 void factorize(ll n){
-	// cout<<"fac"<<n<<" ";
-	while(n%2==0){ factors.pb(2); n>>=1; }
-	if(probablyPrime(n)) { factors.pb(n); return; }
+	if (n<2) return;
+	while(n%2==0){ divisors[2]++; n>>=1; }
+	if(probablyPrime(n)) { divisors[n]++; return; }
 
 	ll d;
 	if (n<sie_sz){ d = divs[n]; } 
@@ -149,36 +148,13 @@ void factorize(ll n){
 }
 
 void start_factorize(ll n){
-	factors.clear();
+	divisors.clear();
 	factorize(n);
-	if (factors.empty()) factors.pb(1);
-	sort(factors.begin(), factors.end());
 	
 	if (DEBUG){
-		for(int i=0;i<factors.size();i++){ cout<<factors[i]<<" "; } 
-		cout<<endl;
-	}
-}
-
-vector<int> enc;
-void encode(){
-	sort(factors.begin(), factors.end());
-	enc.clear();
-	int cnt=1;
-	for(int i=1;i<v.size();i++){
-		if(factors[i]==factors[i-1]){
-			cnt++;
-		} else {
-			enc.pb(cnt);
-			cnt=1;
-		}
-	}
-	enc.pb(cnt);
-
-	sort(enc.begin(), enc.end());
-	if (DEBUG){
-		for(int i=0;i<enc.size();i++){ cout<<enc[i]<<" "; }
-		cout<<endl;
+		for(auto d : divisors){
+			cout<<"("<<d.fi<<","<<d.se<<")"<<" ";
+		} cout<<endl;
 	}
 }
 
@@ -190,7 +166,6 @@ int main(){
 	while(n--){
 		cin>>m; 
 		start_factorize(m);
-		encode();
 	}
 
 	return 0;
