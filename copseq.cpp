@@ -6,10 +6,11 @@ using namespace std;
 #define fi first
 #define se second
 
-typedef long long ll;
-typedef pair<int, int> ii;
+typedef unsigned long long ll;
+typedef pair<ll,ll> ii;
 
-const bool DEBUG = true;
+bool DEBUG = true;
+ll MODULO = 1e9+7;
 
 ll mulmod(ll multa, ll multb, ll mod){
 	ll res=0ll; multa%=mod;
@@ -147,26 +148,175 @@ void factorize(ll n){
 	}
 }
 
-void start_factorize(ll n){
+ll matrix_mult(vector<ll> &a, vector<ll> &b){
+	ll r=0;
+	for(int i=0;i<a.size();i++){
+		r = (r+mulmod(a[i],b[i],MODULO))%MODULO;
+	} return r;
+}
+
+void matrix_mult(vector<ll> &a, vector<vector<ll> > &b){
+	ll res,tmp;
+	vector<ll> c;
+	for (int i=0;i<a.size();i++){
+		res=0;
+		for(int j=0;j<a.size();j++){
+			tmp = mulmod(a[j], b[i][j], MODULO);
+			res = (res+tmp)%MODULO;
+		} c.pb(res);
+	}
+	
+	for(int i=0;i<a.size();i++){
+		a[i]=c[i];
+	}
+}
+
+void matrix_mult(vector<vector<ll> > &a, vector<vector<ll> > &b){
+	ll res,tmp;
+	vector<ll> d;
+	vector<vector<ll> > c;
+	
+	for (int i=0;i<a.size();i++){
+		d.clear(); 
+		for(int j=0;j<a.size();j++){
+			res=0;
+			for(int k=0;k<a.size();k++){
+				tmp = mulmod(a[i][k], b[k][j], MODULO);
+				res = (res+tmp)%MODULO;
+			} d.pb(res);
+		} c.pb(d);
+	}
+	
+	for(int i=0;i<a.size();i++){
+		for(int j=0;j<a.size();j++){
+			a[i][j]=c[i][j];
+		}
+	}
+}
+
+void matrix_exp(vector<vector<ll> > &a, ll pow){
+	if (pow==0) return;
+	
+	vector<ll> d;
+	vector<vector<ll> > c;
+	
+	for(int i=0;i<a.size();i++){
+		d.clear();
+		for(int j=0;j<a.size();j++){
+			d.pb(a[i][j]);			
+		} c.pb(d);
+	}
+	
+	while(pow){
+		if (pow&1) matrix_mult(a,c);
+		matrix_mult(c,c);
+		pow>>=1;
+	}
+}
+
+
+
+void start_factorize(ll num, ll pow){
 	divisors.clear();
-	factorize(n);
+	factorize(num);
 	
 	if (DEBUG){
+//		cout<<divisors.size()<<endl;
 		for(auto d : divisors){
 			cout<<"("<<d.fi<<","<<d.se<<")"<<" ";
 		} cout<<endl;
 	}
+	
+	// move to vector for dependable indexing
+	vector<ii> work(divisors.begin(), divisors.end());
+	sort(work.begin(), work.end());
+	
+	int size=(1<<divisors.size());
+	vector<ll> identityA(size,1);
+	vector<ll> identityB(size,1);
+	vector<ll> dp(size,0);
+	
+	// memo each divisors count
+	for(int i=0;i<size;i++){
+		int j=i,k=0;
+		ll cnt=1;			
+		while(j){
+			if (j&1){
+//				cnt = cnt*work[k].se;
+				cnt = mulmod(cnt, work[k].se, MODULO);
+			} k++; j>>=1;
+		} dp[i]=cnt;
+		
+		if (DEBUG) cout<<dp[i]<<" ";
+	} if (DEBUG) cout<<endl;
+	
+	// build the matrix
+	vector<ll> vxx(size,0);
+	vector<vector<ll> > matrix(size,vxx);
+	for(int i=0;i<size;i++){
+		for(int j=0;j<size;j++){
+//			matrix[i][j] = (i&j? dp[i]*dp[j] : 0);
+			matrix[i][j] = (i&j? mulmod(dp[i],dp[j],MODULO) : 0);
+		}
+	}
+	
+	ll final_ans=0;
+	if (pow==1){
+		for(int i=1;i<size;i++){
+			final_ans = (final_ans+dp[i])%MODULO;
+		}
+	} else {
+		if (pow>2){
+			// exponent the matrix
+			matrix_exp(matrix, pow-2);
+		}
+		
+		if (DEBUG){
+			for(int i=1;i<matrix.size();i++){
+				for(int j=1;j<matrix.size();j++){
+					cout<<matrix[i][j]<<" ";
+				} cout<<endl;
+			}
+		}
+		
+		matrix_mult(identityA, matrix);
+		final_ans=matrix_mult(identityA, identityB);
+	}
+	cout<<final_ans<<endl;
+}
+
+void unit_test(){	
+	vector<ll> v(3,1);
+	vector<vector<ll> > test(3,v);
+	for(int i=0;i<3;i++) test[i][i]=0;
+	matrix_exp(test,1);
+	for(int i=0;i<3;i++){ for(int j=0;j<3;j++){ cout<<test[i][j]<<" "; } cout<<endl; }
+	
+	matrix_mult(v,test);
+	for(int i=0;i<3;i++){ cout<<v[i]<<" "; } cout<<endl;
 }
 
 int main(){
+	DEBUG = false;
+	
 	sieve();
-
-	ll n,m;
-	cin>>n; 
-	while(n--){
-		cin>>m; 
-		start_factorize(m);
+	ll n,m,l;
+	
+	if (DEBUG) {
+		//unit_test();
+		cin>>l; 
+	} else {
+		l = 1;
 	}
-
+	
+	while(l--){	
+		cin>>n>>m;
+		if (n==0 || m<2) {
+			cout<<"0\n"; 
+		} else {
+			start_factorize(m,n);
+		}
+	}
+	
 	return 0;
 }
