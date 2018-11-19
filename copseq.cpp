@@ -6,7 +6,7 @@ using namespace std;
 #define fi first
 #define se second
 
-typedef long ll;
+typedef unsigned long long ll;
 typedef pair<ll,ll> ii;
 
 bool DEBUG = true;
@@ -81,7 +81,7 @@ ll brent_pollard_rho(ll n){
 	ll c,x,y,ys,d,r,q,k,m;
 	y=(rand()%(n-0))+0;
 	do { c=(rand()%(n-3))+1; } while(y==c);
-	d=r=q=1; m=100;
+	d=r=q=1; m=1000;
 	
 	while(d==1) {
 		x=y;
@@ -216,7 +216,7 @@ void matrix_exp(vector<vector<ll> > &a, ll pow){
 
 
 
-void start_factorize(ll num, ll pow){
+void start_factorize(ll num){
 	divisors.clear();
 	factorize(num);
 	
@@ -226,14 +226,76 @@ void start_factorize(ll num, ll pow){
 			cout<<"("<<d.fi<<","<<d.se<<")"<<" ";
 		} cout<<endl;
 	}
+}
+
+void calculate_final_v3(ll pow){
+	vector<ll> iprima(64,0);
+	for (auto d : divisors){
+		iprima[d.se]++;
+	}
 	
+	if (DEBUG){
+		for(int i=0;i<64;i++){
+			cout<<iprima[i]<<" ";
+		} cout<<endl;
+	}
+}
+
+void calculate_final_v2(ll pow){	
+	vector<ii> work(divisors.begin(), divisors.end());
+	sort(work.begin(), work.end());
+	
+	int size=(1<<divisors.size());
+	vector<ll> base(size,0);
+	vector<ll> dp(size,0);
+	vector<ll> identityD(size,1);
+	
+	for(int i=0;i<size;i++){
+		int j=i,k=0;
+		ll cnt=1;
+		while(j){
+			if(j&1){
+				cnt = mulmod(cnt,work[k].se,MODULO);
+			} k++; j>>=1;
+		} dp[i]=cnt;
+	} dp[0]=0;
+	base = dp;
+	
+	vector<ll> helperZ;
+	for(int k=0;k<pow-1;k++){
+		helperZ.clear();
+		for(int i=0;i<size;i++){
+			ll tmprd=base[i],tmpre=0;
+			for(int j=0;j<size;j++){
+				if (i&j){
+					tmpre = (tmpre+dp[j])%MODULO;
+//					tmprd = (tmprd+base[j])%MODULO;
+//					tmprd = mulmod(tmprd, base[j], MODULO);
+				}
+			} tmprd = mulmod(tmprd,tmpre,MODULO);
+			helperZ.pb(tmprd);
+		} dp = helperZ;
+		
+		if (DEBUG){
+			for(int z=0;z<size;z++){
+				cout<<dp[z]<<" ";
+			} cout<<endl;
+		}
+	}
+	
+	ll final_ans = matrix_mult(dp, identityD);
+	if (pow==1) final_ans++;
+	cout<<final_ans<<endl;
+}
+
+void calculate_final(ll pow){
 	// move to vector for dependable indexing
 	vector<ii> work(divisors.begin(), divisors.end());
 	sort(work.begin(), work.end());
 	
 	int size=(1<<divisors.size());
-	vector<ll> identityA(size,1);
-	vector<ll> identityB(size,1);
+	vector<ll> identityA(size,1); identityA[0]=0;
+	vector<ll> identityB(size,1); identityB[0]=0;
 	vector<ll> dp(size,0);
 	
 	// memo each divisors count
@@ -249,28 +311,35 @@ void start_factorize(ll num, ll pow){
 		
 		if (DEBUG) cout<<dp[i]<<" ";
 	} if (DEBUG) cout<<endl;
+	dp[0]=0;
 	
 	// build the matrix
 	vector<ll> vxx(size,0);
 	vector<vector<ll> > matrix(size,vxx);
 	for(int i=0;i<size;i++){
+		ll tempr=0;
 		for(int j=0;j<size;j++){
 //			matrix[i][j] = (i&j? dp[i]*dp[j] : 0);
 			matrix[i][j] = (i&j? mulmod(dp[i],dp[j],MODULO) : 0);
+			tempr = (i&j? tempr+matrix[i][j] : tempr);
+			tempr %= MODULO;
 		}
+		vxx[i] = tempr;
+	}
+	
+	if (DEBUG){
+		cout<<"tempra\n";
+		for(int i=0;i<size;i++){
+			cout<<vxx[i]<<" ";			
+		} cout<<endl;
 	}
 	
 	ll final_ans=0;
 	if (pow==1){
 		final_ans=matrix_mult(dp,identityB);
-	} else if(dp.size()==2) {
-		final_ans=fast_exp(dp[1],pow,MODULO);
-	} else {
-		if (pow>2){
-			// exponent the matrix
-			matrix_exp(matrix, pow-2);
-		}
-		
+	} else if (dp.size()==2){
+		final_ans = fast_exp(dp[1],pow,MODULO);	
+	} else if(pow==2){
 		if (DEBUG){
 			for(int i=1;i<matrix.size();i++){
 				for(int j=1;j<matrix.size();j++){
@@ -281,8 +350,31 @@ void start_factorize(ll num, ll pow){
 		
 		matrix_mult(identityA, matrix);
 		final_ans=matrix_mult(identityA, identityB);
+	} else {
+		vector<ll> helperC;
+		for(int npow=0;npow<pow-2;npow++){
+			helperC.clear();
+			for(int i=0;i<size;i++){
+				ll tmpra=0;
+				for (int j=0;j<size;j++){
+					tmpra = (i&j? tmpra+vxx[j]:tmpra); 
+					tmpra %= MODULO;
+				} helperC.pb(tmpra);
+			}
+			vxx = helperC;
+		}
+		
+		if (DEBUG){
+			cout<<"tempru\n";
+			for(int i=0;i<size;i++){
+				cout<<vxx[i]<<" ";
+			} cout<<endl;
+		}
+		
+		final_ans = matrix_mult(dp, vxx);
 	}
 	cout<<final_ans<<endl;
+
 }
 
 void unit_test(){	
@@ -297,26 +389,26 @@ void unit_test(){
 }
 
 int main(){
+	bool TESTCASES = true;
 	DEBUG = false;
 	
 	sieve();
-	ll n,m,l;
+	ll n,m,l=1;
 	
-	if (DEBUG) {
+	if (TESTCASES) {
 		//unit_test();
 		cin>>l; 
-	} else {
-		l = 1;
 	}
 	
 	while(l--){	
 		cin>>n>>m;
 		if (n==0){
-			cout<<"0\n";
-		} else if(m<2) {
-			cout<<"1\n"; 
+			cout<<"0\n"; 	
+		} else if (m==1 && n==1){
+			cout<<"1\n";
 		} else {
-			start_factorize(m,n);
+			start_factorize(m);
+			calculate_final_v2(n);
 		}
 	}
 	
