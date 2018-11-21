@@ -1,558 +1,298 @@
 #include<bits/stdc++.h>
 using namespace std;
 
-#define pb push_back
 #define mp make_pair
+#define pb push_back
 #define fi first
 #define se second
 
-typedef unsigned long long ll;
+typedef long long ll;
 typedef pair<ll,ll> ii;
 
-bool DEBUG = true;
-bool TESTCASES = true;
-ll MODULO = 1e9+7;
+bool debug=true,testcase=true,rep=true;
 
-ll mulmod(ll multa, ll multb, ll mod){
-	return ((multa%mod)*(multb%mod))%mod;
-	
-//	ll res=0ll; multa%=mod;
-//	while(multb){
-//		if(multb&1) res=(res+multa)%mod;
-//		multa=(multa<<1)%mod;
-//		multb>>=1;
-//	}
-//	return res;
+const static int sieve_size=1e6+5, max_pow=64, max_n=1e3;
+const static ll MOD=1e9+7;
+bitset<sieve_size> is_prime;
+vector<ll> d_sieve;  // divisors of num under sieve
+ll combin[max_pow][max_pow];
+
+unordered_map<ll,ll> pf,pf_powers;  //prime factors, prime factors powers
+int id[max_n][max_pow];
+ll pf_size,pf_pow_size,u_prime; // number of prime factors, unique numbering of pf
+ll n,m,tc=1;
+
+vector<vector<ll> > t_matrix,h_matrix,r_matrix;  // transition, helper, result matrix
+
+ll mod_add(ll a, ll b, ll m){
+	return ((a%m)+(b%m))%m;
 }
 
-ll fast_gcd(ll a, ll b){
-	return __gcd(a,b);
-	
-//	while(true){
-//		ll r=a%b;
-//		if (r==0) return b;
-//		a=b; b=r;
-//	}
+ll mod_mult(ll a, ll b, ll m){
+	ll r=0;
+	while(b){
+		if(b&1) r=mod_add(r,a,m);
+		a=mod_add(a,a,m);
+		b>>=1;
+	} return r;
 }
 
-ll fast_exp(ll base, ll pow, ll mod){
-	ll res=1ll;
-	while(pow){
-		if (pow&1) res=mulmod(res, base, mod);
-		base = mulmod(base, base, mod);
-		pow>>=1;
-	}
-	return res;
+ll mod_exp(ll b, ll p, ll m){
+	ll r=1;
+	while(p){
+		if(p&1) r=mod_mult(r,b,m);
+		b=mod_mult(b,b,m);
+		p>>=1;
+	} return r;
 }
 
-bool millerRabin(ll p){
-	if (p<2 || (p!=2 && p%2==0)) return false;
-	ll s=p-1;
-	while(s%2==0) s>>=1;
-	ll a[10] = {2,3,5,7,11,13,17,19,23,29}; 
-	for(int i=0;i<10;i++){
-		ll temp=s;
-		ll mod=fast_exp(a[i],temp,p);
-		while(temp!=p-1 && mod!=1 && mod!=p-1){
-			mod = mulmod(mod,mod,p);
-			temp<<=1;
-		}
-		if (mod!=p-1 && temp%2==0) return false;
-	}
-	return true;
-}
-
-ll floyd_pollard_rho(ll n){
-	ll d=n;
-	for(int c=2; d==n; c++){
-		ll x=2;
-		ll y=x;
-		while(true) {
-			x = (mulmod(x,x,n) + c)%n;
-			y = (mulmod(y,y,n) + c)%n;
-			y = (mulmod(y,y,n) + c)%n;
-			d = fast_gcd(abs(x-y),n);
-			if(d>1) break;
-		}
-	}
-	return d;
-}
-
-ll brent_pollard_rho(ll n){
-	if (n<2) return 1;
-	if (n%2==0) return 2;
-
-	srand(time(NULL));
-	ll c,x,y,ys,d,r,q,k,m;
-	y=(rand()%(n-0))+0;
-	do { c=(rand()%(n-3))+1; } while(y==c);
-	d=r=q=1; m=100;
-	
-	while(d==1) {
-		x=y;
-		for (int i=0;i<r;i++){
-			y = (mulmod(y,y,n) + c)%n;
-		}
-		k=0;
-		while(k<r && d==1) {
-			ys=y;
-			for(int i=0;i<min(m,r-k);i++){
-				y = (mulmod(y,y,n) + c)%n;
-				q = mulmod(q,abs(x-y),n);
-			}
-			d = fast_gcd(q,n);
-			k+=m;
-		}
-		r<<=1;
-	}
-	if(d==n){
-		while(true) {
-			ys = (mulmod(ys,ys,n) + c)%n;
-			d = fast_gcd(abs(x-ys),n);
-			if (d>1) break;
-		}
-	}
-	return d;
-}
-
-const static int sie_sz = 1e6+5;
-bitset<sie_sz> is_prime;
-vector<ll> divs(sie_sz, 1);
 void sieve(){
-	is_prime.flip(); 
+	is_prime.flip(); d_sieve.assign(sieve_size,1);
 	is_prime.reset(0); is_prime.reset(1);
-	for(int i=2;i<sqrt(sie_sz);i++){
+	int bound=sqrt(sieve_size);
+	for(int i=2;i<bound;i++){
 		if(is_prime.test(i)){
-			for(int j=i*i;j<sie_sz;j+=i){
-				divs[j]=i;
+			for(int j=i*i;j<sieve_size;j+=i){
+				d_sieve[j]=i;
 				is_prime.reset(j);
 	}}}
 }
 
-bool probablyPrime(ll n){
-	if(n<sie_sz){
-		return is_prime.test(n);
-	} else {
-		return millerRabin(n);
+void combine(){
+	memset(combin,0,sizeof(combin));
+	for(int i=0;i<max_pow;i++){
+		combin[i][0]=1;
+		for(int j=1;j<=i;j++){
+			combin[i][j]=mod_add(combin[i-1][j-1],combin[i-1][j],MOD);
+	}}
+	
+	if(debug){
+		for(int i=0;i<max_pow;i++){
+			for(int j=0;j<max_pow;j++){
+				cout<<combin[i][j]<<" ";
+			} cout<<endl;
+	}}
+}
+
+bool is_prima(ll p){
+	if(p<sieve_size) return is_prime.test(p);
+	if(p%2==0) return false;
+	ll s=p-1;
+	while(!(s&1)) s>>=1;
+	ll a[10]={2,3,5,7,11,13,17,19,23,29};
+	for(int i=0;i<10;i++){
+		ll temp=s;
+		ll mod=mod_exp(a[i],temp,p);
+		while(temp!=p-1 && mod!=1 && mod!=p-1){
+			mod=mod_mult(mod,mod,p);
+			temp<<=1;
+		}
+		if(mod!=p-1 && temp%2==0) return false;
 	}
+	return true;
 }
 
-unordered_map<ll,int> divisors;
-void factorize(ll n){
-	if (n<2) return;
-	while(n%2==0){ divisors[2]++; n>>=1; }
-	if(probablyPrime(n)) { divisors[n]++; return; }
-
-	ll d;
-	if (n<sie_sz){ d = divs[n]; } 
-	else { d = brent_pollard_rho(n); }
-
-	if (d!=1 && d!=n) {	
-		factorize(d); 
-		factorize(n/d); 
+ll brent_pollard_rho(ll n){
+	if(n<sieve_size) return d_sieve[n];
+	ll sqrn=floor(sqrt(n));
+	if((sqrn*sqrn)==n) return sqrn;
+	
+	srand(time(NULL));
+	ll c,x,y,ys,d,r,q,k,m;
+	y=(rand()%(n-2))+1;
+	c=(rand()%(n-3))+2;
+	d=r=q=1; m=1000;
+	
+	while(d==1) {
+		x=y; k=0;
+		for(int i=0;i<r;i++){ y=(mod_mult(y,y,n)+c)%m; }
+		while(k<r && d==1) {
+			ys=y;
+			for(int i=0;i<min(m,r-k);i++){
+				y = (mod_mult(y,y,n)+c)%n;
+				q = mod_mult(q,abs(x-y),n);
+			}
+			d = __gcd(q,n);
+			k+=m;
+		} r<<=1;
 	}
+	if(d==n){
+		do {
+			ys = (mod_mult(ys,ys,n)+c)%n;
+			d = __gcd(abs(x-ys),n);
+		} while(d==1);
+	}
+	return d;
 }
 
-ll matrix_mult(vector<ll> &a, vector<ll> &b){
-	ll r=0;
-	for(int i=0;i<a.size();i++){
-		r = (r+mulmod(a[i],b[i],MODULO))%MODULO;
-	} return r;
+void factorize(ll m){
+	while(m%2==0){ pf[2]++; m>>=1; }
+	if (is_prima(m)){ pf[m]++; return; }
+	
+	ll f=brent_pollard_rho(m);
+	if(f==1 || f==m) return;
+	factorize(f); factorize(m/f);
 }
 
-void matrix_mult(vector<ll> &a, vector<vector<ll> > &b){
-	ll res,tmp;
-	vector<ll> c;
-	for (int i=0;i<a.size();i++){
-		res=0;
-		for(int j=0;j<a.size();j++){
-			tmp = mulmod(a[j], b[i][j], MODULO);
-			res = (res+tmp)%MODULO;
-		} c.pb(res);
+void start_factorize(ll m){
+	pf.clear();
+	pf_powers.clear();
+	pf_size=pf_pow_size=0;
+	factorize(m);
+}
+
+void count_pow(){
+	pf_size=pf_pow_size=1;
+	for(auto p : pf){
+		pf_powers[p.se]++;
+		pf_size = mod_mult(pf_size,p.se+1,MOD);
 	}
 	
-	for(int i=0;i<a.size();i++){
-		a[i]=c[i];
+	for(auto p : pf_powers){
+		pf_pow_size = mod_mult(pf_pow_size,p.se+1,MOD);
+	}
+	
+	if(debug){
+		for(auto p : pf){
+			cout<<"("<<p.fi<<","<<p.se<<") ";
+		} cout<<endl;
+		for(auto p : pf_powers){
+			cout<<"["<<p.fi<<","<<p.se<<"] ";	
+		} cout<<endl;	
+	}
+}
+
+void count_edge(){
+	memset(id,0,sizeof(id));
+	u_prime=0;	
+	ll prev=1;
+	for(auto p:pf_powers){
+		for(int i=0;i<pf_pow_size;i++){
+			id[i][u_prime]= (i/prev)%(p.se+1);
+		} prev *= p.se+1; 
+		id[0][u_prime]=p.fi; 
+		u_prime++; 
+	}
+	
+	t_matrix.assign(pf_pow_size, vector<ll>(pf_pow_size,0));
+	for(int i=1;i<pf_pow_size;i++){
+		for(int j=1;j<pf_pow_size;j++){
+			ll inc,exc; inc=exc=1;
+			for(int k=0;k<u_prime;k++){
+				inc = mod_mult(inc,combin[pf_powers[id[0][k]]][id[j][k]],MOD);
+				inc = mod_mult(inc,mod_exp(id[0][k],id[j][k],MOD),MOD);
+				
+				exc = mod_mult(exc,combin[pf_powers[id[0][k]]-id[i][k]][id[j][k]],MOD);
+				exc = mod_mult(exc,mod_exp(id[0][k],id[j][k],MOD),MOD);
+			}
+			t_matrix[i][j]=(inc-exc+MOD)%MOD;
+		}
+	}
+	
+	if(debug){
+		for(int i=0;i<pf_pow_size;i++){
+			for(int j=0;j<u_prime;j++){
+				cout<<id[i][j]<<" ";
+			} cout<<endl;
+		}
+		for(int i=0;i<pf_pow_size;i++){
+			for(int j=0;j<pf_pow_size;j++){
+				cout<<t_matrix[i][j]<<" ";
+			} cout<<endl;
+		}
 	}
 }
 
 void matrix_mult(vector<vector<ll> > &a, vector<vector<ll> > &b){
-	ll res,tmp;
-	vector<ll> d;
-	vector<vector<ll> > c;
-	
-	for (int i=0;i<a.size();i++){
-		d.clear(); 
-		for(int j=0;j<a.size();j++){
-			res=0;
-			for(int k=0;k<a.size();k++){
-				tmp = mulmod(a[i][k], b[k][j], MODULO);
-				res = (res+tmp)%MODULO;
-			} d.pb(res);
-		} c.pb(d);
-	}
-	
-	for(int i=0;i<a.size();i++){
-		for(int j=0;j<a.size();j++){
-			a[i][j]=c[i][j];
-		}
-	}
-}
-
-void matrix_exp(vector<vector<ll> > &a, ll pow){
-	if (pow==0) return;	
-	
-	vector<ll> d;
-	vector<vector<ll> > c;
-	
-	for(int i=0;i<a.size();i++){
-		d.clear();
-		for(int j=0;j<a.size();j++){
-			d.pb(a[i][j]);			
-		} c.pb(d);
-	}
-	
-	while(pow){
-		if (pow&1) matrix_mult(a,c);
-		matrix_mult(c,c);
-		pow>>=1;
-	}
-}
-
-
-
-void start_factorize(ll num){
-	divisors.clear();
-	factorize(num);
-	
-	if (DEBUG){
-//		cout<<divisors.size()<<endl;
-		for(auto d : divisors){
-			cout<<"("<<d.fi<<","<<d.se<<")"<<" ";
-		} cout<<endl;
-	}
-}
-
-const int maxn=1e3,pow_size = 63;
-ll ukuran;
-ll combin[pow_size][pow_size];
-ll i_stack[pow_size];
-ll i_matrix[maxn][pow_size];
-ll i_prima[pow_size];
-void fill_stack(int depth){
-	if (depth==pow_size){
-		int i;
-		for(i=1;i<pow_size;i++){
-			i_matrix[ukuran][i] = i_stack[i];		
-		} 
-		if (false)
-		if (DEBUG){
-			cout<<ukuran<<" "<<i<<endl;	
-			for(int i=0;i<pow_size;i++){
-				cout<<i_matrix[ukuran][i]<<" ";
-			} cout<<endl;
-			system("pause");
-		}
-		ukuran++;
-		return;
-	}
-	
-	for(i_stack[depth]=0;i_stack[depth]<=i_prima[depth];i_stack[depth]++){
-		fill_stack(depth+1);
-	}
-}
-
-vector<vector<ll> > t_matrix;
-void prepare_combin(){
-	memset(combin,0,sizeof(combin));
-	memset(i_stack,0,sizeof(i_stack));
-	memset(i_matrix,0,sizeof(i_matrix));
-	ukuran=0;
-	for(int i=0;i<pow_size;i++){
-		combin[i][0]=1;
-		for(int j=1;j<=i;j++){
-			combin[i][j] = (combin[i-1][j-1]+combin[i-1][j])%MODULO;
-		}
-	}
-	
-	fill_stack(0);
-
-	if (DEBUG){
-		if (false)
-		for(int i=0;i<pow_size;i++){
-			for(int j=0;j<pow_size;j++){
-				cout<<combin[i][j]<<" ";
-			} cout<<endl;
-		}
-		
-		if (false)
-		for(int i=0;i<ukuran;i++){
-			for(int j=0;j<pow_size;j++){
-				cout<<i_matrix[i][j]<<" ";
-			} cout<<endl;
-		}
-	}
-	
-	t_matrix.assign(ukuran+5, vector<ll>(ukuran+5,0));
-	for(int i=1;i<ukuran;i++){
-		for(int j=1;j<ukuran;j++){
-			ll P,Q; P=Q=1;
-			if (false)
-			if (DEBUG){
-				cout<<i<<" "<<j<<" : ";
-			}
-			ll tmpf, tmpg;
-			for(int k=1;k<pow_size;k++){
-				tmpf = mulmod(combin[i_prima[k]][i_matrix[j][k]] , fast_exp(k,i_matrix[j][k],MODULO) , MODULO);
-				P = mulmod(P,tmpf,MODULO);
-				
-				tmpg = mulmod(combin[i_prima[k]-i_matrix[i][k]][i_matrix[j][k]] , fast_exp(k,i_matrix[j][k],MODULO) , MODULO);
-				Q = mulmod(Q,tmpg,MODULO);
-			}
-			t_matrix[i][j]=(P+MODULO-Q)%MODULO;
-		}
-	}
-	
-	if (DEBUG)
-	for(int i=0;i<ukuran;i++){
-		for(int j=0;j<ukuran;j++){
-			cout<<t_matrix[i][j]<<" ";
-		} cout<<endl;
-	}
-}
-
-void calculate_final_v3(ll pow){
-	memset(i_prima,0,sizeof(i_prima));
-	for (auto d : divisors){
-		i_prima[d.se]++;
-	}
-	
-	if (DEBUG){
-		for(int i=0;i<pow_size;i++){
-			cout<<i_prima[i]<<" ";
-		} cout<<endl;
-	}
-}
-
-void calculate_final_v2(ll pow){	
-	vector<ii> work(divisors.begin(), divisors.end());
-	sort(work.begin(), work.end());
-	
-	int size=(1<<divisors.size());
-	vector<ll> base(size,0);
-	vector<ll> dp(size,0);
-	vector<ll> identityD(size,1);
-	
+	ll res,size=a.size();
+	h_matrix.assign(size,vector<ll>(size,0));
 	for(int i=0;i<size;i++){
-		int j=i,k=0;
-		ll cnt=1;
-		while(j){
-			if(j&1){
-				cnt = mulmod(cnt,work[k].se,MODULO);
-			} k++; j>>=1;
-		} dp[i]=cnt;
-	} dp[0]=0;
-	base = dp;
-	
-	vector<ll> helperZ;
-	for(int k=0;k<pow-1;k++){
-		helperZ.clear();
-		for(int i=0;i<size;i++){
-			ll tmprd=base[i],tmpre=0;
-			for(int j=0;j<size;j++){
-				if (i&j){
-					tmpre = (tmpre+dp[j])%MODULO;
-//					tmprd = (tmprd+base[j])%MODULO;
-//					tmprd = mulmod(tmprd, base[j], MODULO);
-				}
-			} tmprd = mulmod(tmprd,tmpre,MODULO);
-			helperZ.pb(tmprd);
-		} dp = helperZ;
-		
-		if (DEBUG){
-			for(int z=0;z<size;z++){
-				cout<<dp[z]<<" ";
-			} cout<<endl;
-		}
-	}
-	
-	ll final_ans = matrix_mult(dp, identityD);
-	if (pow==1) final_ans++;
-	cout<<final_ans<<endl;
-}
-
-void calculate_final(ll pow){
-	// move to vector for dependable indexing
-	vector<ii> work(divisors.begin(), divisors.end());
-	sort(work.begin(), work.end());
-	
-	int size=(1<<divisors.size());
-	vector<ll> identityA(size,1); identityA[0]=0;
-	vector<ll> identityB(size,1); identityB[0]=0;
-	vector<ll> dp(size,0);
-	
-	// memo each divisors count
-	for(int i=0;i<size;i++){
-		int j=i,k=0;
-		ll cnt=1;			
-		while(j){
-			if (j&1){
-//				cnt = cnt*work[k].se;
-				cnt = mulmod(cnt, work[k].se, MODULO);
-			} k++; j>>=1;
-		} dp[i]=cnt;
-		
-		if (DEBUG) cout<<dp[i]<<" ";
-	} if (DEBUG) cout<<endl;
-	dp[0]=0;
-	
-	// build the matrix
-	vector<ll> vxx(size,0);
-	vector<vector<ll> > matrix(size,vxx);
-	for(int i=0;i<size;i++){
-		ll tempr=0;
 		for(int j=0;j<size;j++){
-//			matrix[i][j] = (i&j? dp[i]*dp[j] : 0);
-			matrix[i][j] = (i&j? mulmod(dp[i],dp[j],MODULO) : 0);
-			tempr = (i&j? tempr+matrix[i][j] : tempr);
-			tempr %= MODULO;
-		}
-		vxx[i] = tempr;
-	}
+			res=0;
+			for(int k=0;k<size;k++){
+				res=mod_add(res,mod_mult(a[i][k],b[k][j],MOD),MOD);
+			} h_matrix[i][j]=res;
+	}}
 	
-	if (DEBUG){
-		cout<<"tempra\n";
-		for(int i=0;i<size;i++){
-			cout<<vxx[i]<<" ";			
-		} cout<<endl;
-	}
-	
-	ll final_ans=0;
-	if (pow==1){
-		final_ans=matrix_mult(dp,identityB);
-	} else if (dp.size()==2){
-		final_ans = fast_exp(dp[1],pow,MODULO);	
-	} else if(pow==2){
-		if (DEBUG){
-			for(int i=1;i<matrix.size();i++){
-				for(int j=1;j<matrix.size();j++){
-					cout<<matrix[i][j]<<" ";
-				} cout<<endl;
-			}
-		}
-		
-		matrix_mult(identityA, matrix);
-		final_ans=matrix_mult(identityA, identityB);
-	} else {
-		vector<ll> helperC;
-		for(int npow=0;npow<pow-2;npow++){
-			helperC.clear();
-			for(int i=0;i<size;i++){
-				ll tmpra=0;
-				for (int j=0;j<size;j++){
-					tmpra = (i&j? tmpra+vxx[j]:tmpra); 
-					tmpra %= MODULO;
-				} helperC.pb(tmpra);
-			}
-			vxx = helperC;
-		}
-		
-		if (DEBUG){
-			cout<<"tempru\n";
-			for(int i=0;i<size;i++){
-				cout<<vxx[i]<<" ";
-			} cout<<endl;
-		}
-		
-		final_ans = matrix_mult(dp, vxx);
-	}
-	cout<<final_ans<<endl;
-
+	for(int i=0;i<size;i++){
+		for(int j=0;j<size;j++){
+			a[i][j]=h_matrix[i][j];
+	}}
 }
 
-void unit_test(){	
-	vector<ll> v(3,1);
-	vector<vector<ll> > test(3,v);
-	for(int i=0;i<3;i++) test[i][i]=0;
-	matrix_exp(test,1);
-	for(int i=0;i<3;i++){ for(int j=0;j<3;j++){ cout<<test[i][j]<<" "; } cout<<endl; }
+void matrix_exp(vector<vector<ll> > &a, ll p){
+	ll size=a.size();
+	r_matrix.assign(size,vector<ll>(size,0));
+	for(int i=0;i<size;i++) r_matrix[i][i]=1;
 	
-	matrix_mult(v,test);
-	for(int i=0;i<3;i++){ cout<<v[i]<<" "; } cout<<endl;
+	while(p){
+		if(p&1) matrix_mult(r_matrix,a);
+		matrix_mult(a,a);
+		p>>=1;		
+	}
+	
+	for(int i=0;i<size;i++){
+		for(int j=0;j<size;j++){
+			a[i][j]=r_matrix[i][j];
+	}}
 }
 
-ll result_count(vector<vector<ll> > &a){
-	ll final_ans = 0;	
-	for(int i=1;i<ukuran;i++){
-		ll P=1, tmpf;
-		for(int j=1;j<ukuran;j++){
-			tmpf = mulmod(combin[i_prima[j]][i_matrix[i][j]] , fast_exp(j,i_matrix[i][j],MODULO) , MODULO);
-			P = mulmod(P,tmpf,MODULO);
+ll count_result(vector<vector<ll> >&a){
+	ll ans=0,base_f;
+	for(int i=1;i<a.size();i++){
+		base_f=1;
+		for(int j=0;j<u_prime;j++){
+			base_f=mod_mult(base_f,combin[pf_powers[id[0][j]]][id[i][j]],MOD);
+			base_f=mod_mult(base_f,mod_exp(id[0][j],id[i][j],MOD),MOD);
 		}
-		
-		for(int j=1;j<ukuran;j++){
-			final_ans = (final_ans+(P*a[i][j]))%MODULO;
+		for(int j=1;j<a.size();j++){
+			ans=mod_add(ans,mod_mult(base_f,a[i][j],MOD),MOD);
 		}
-	}
-	return final_ans%MODULO;
+	}	
+	return ans;
 }
+
 
 int main(){
-	TESTCASES = false;
-	DEBUG = false;
+	debug=false;
+	testcase=false;
+	rep=false;
 	
+	combine(); sieve();
 	
-	sieve();
-	ll n,m,l=1;
+	ios_base::sync_with_stdio(false);
 	
-	if (TESTCASES) {
-		//unit_test();
-		cin>>l; 
+	if(testcase){
+		cin>>tc;
 	}
-	
-	while(l--){	
+	while(tc--){
 		cin>>n>>m;
-		if (m<2){
-			cout<<"1\n";
-		} else {
-			start_factorize(m);
-			calculate_final_v3(n);
-			
-			
-			if (n==1){
-				ll final_ans=1;
-				for (int i=1;i<pow_size;i++){
-					final_ans = (final_ans*fast_exp(i+1,i_prima[i],MODULO));
-				}
-				cout<<final_ans<<endl;
+		int rep_cnt=n;
+		if (rep){
+			rep_cnt=1;
+		}
+		for(;rep_cnt<=n;rep_cnt++){
+			if (m==0){
+				cout<<"0\n";
+			} else if (m==1){
+				if (n==1) cout<<"1\n"; else cout<<"0\n";
+			} else if(is_prima(m)){
+				if (!n) cout<<"0\n"; else if(n==1) cout<<"2\n"; else cout<<"1\n";
 			} else {
-				prepare_combin();
+				start_factorize(m);
+				count_pow();
 				
-				if (DEBUG){
-					cout<<"t_matrix:"<<endl;
-					for(int i=0;i<t_matrix.size();i++){
-						for(int j=0;j<t_matrix.size();j++){
-							cout<<t_matrix[i][j]<<" ";
-						} cout<<endl;
-					}
+				if (n==1){
+					cout<<pf_size<<endl;
+				} else {
+					count_edge();
+					matrix_exp(t_matrix,n-1);
+					ll ans=count_result(t_matrix);
+					cout<<ans<<endl;
 				}
-						
-				matrix_exp(t_matrix, n-2);	
-				
-				if (DEBUG){
-					cout<<"t_matrix:"<<endl;
-					for(int i=0;i<t_matrix.size();i++){
-						for(int j=0;j<t_matrix.size();j++){
-							cout<<t_matrix[i][j]<<" ";
-						} cout<<endl;
-					}
-				}
-							
-				ll final_ans =result_count(t_matrix);
-				cout<<final_ans<<endl;
 			}
 		}
 	}
-	
+		
 	return 0;
 }
